@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+node_modules/
+frontend/.next/
+frontend/node_modules/
+*.egg-info/
+.DS_Store
+.pids/
+.logs/
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins-dependencies
