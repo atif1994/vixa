@@ -14,35 +14,54 @@ vixa/
 
 ## Quick start
 
-### Prerequisites
-
-- Node.js 20+
-- PostgreSQL 16
-- Redis 7
-
-### Backend
+### One-time setup
 
 ```bash
-cd backend
-cp .env.example .env
-npm install
-npx prisma db push
-npx ts-node prisma/seed.ts
-npm run start:dev
+cd /Users/mac/Desktop/task/vixa-platform
+./setup-backend.sh
 ```
 
-API: http://localhost:8000  
-OpenAPI: http://localhost:8000/api/docs
+### Run (two terminals)
 
-### Frontend
+**Terminal 1 — Backend:**
+```bash
+cd /Users/mac/Desktop/task/vixa-platform
+./start-backend.sh
+```
+
+**Terminal 2 — Frontend:**
+```bash
+cd /Users/mac/Desktop/task/vixa-platform
+./start-frontend.sh
+```
+
+> **Important:** `backend/` is next to `frontend/`, not inside it.  
+> From `frontend/`, use `cd ../backend` — not `cd backend`.
+
+### Manual commands (if you prefer)
 
 ```bash
-cd frontend
+# Backend
+cd /Users/mac/Desktop/task/vixa-platform/backend
+cp .env.example .env
 npm install
+npx prisma db push && npx ts-node prisma/seed.ts
+npm run start:dev
+
+# Frontend (separate terminal)
+cd /Users/mac/Desktop/task/vixa-platform/frontend
 npm run dev
 ```
 
-App: http://localhost:3000
+### Old commands — do NOT use anymore
+
+These were removed when we switched from Python to NestJS:
+
+```bash
+./scripts/start-local.sh   # REMOVED
+./scripts/stop-local.sh    # REMOVED
+pip install -r shared/requirements.txt  # REMOVED
+```
 
 ### Docker Compose
 
