@@ -9,7 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vixa -d vixa_ciam"]
       interval: 5s
@@ -42,7 +42,7 @@ services:
 
   auth-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/auth/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -62,7 +62,7 @@ services:
 
   onboarding-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/onboarding/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -92,7 +92,7 @@ services:
 
   org-site-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/org-site/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -108,7 +108,7 @@ services:
 
   verification-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/verification/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -125,7 +125,7 @@ services:
 
   payments-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/payments/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -143,7 +143,7 @@ services:
 
   licensing-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/licensing/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -158,7 +158,7 @@ services:
 
   acl-service:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/acl/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -170,7 +170,7 @@ services:
 
   observability-node:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/observability-node/Dockerfile
     environment:
       DATABASE_URL: postgresql://vixa:vixa_secret@postgres:5432/vixa_ciam
@@ -190,7 +190,7 @@ services:
 
   gateway:
     build:
-      context: .
+      context: ./backend
       dockerfile: gateway/Dockerfile
     environment:
       REDIS_URL: redis://redis:6379/0
@@ -220,7 +220,7 @@ services:
 
   licence-provisioner:
     build:
-      context: .
+      context: ./backend
       dockerfile: workers/licence-provisioner/Dockerfile
     environment:
       RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
@@ -232,7 +232,7 @@ services:
 
   notification-worker:
     build:
-      context: .
+      context: ./backend
       dockerfile: workers/notification/Dockerfile
     environment:
       RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
@@ -242,8 +242,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:

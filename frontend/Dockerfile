@@ -1,8 +1,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm install
-COPY frontend/ .
+COPY . .
 ENV NEXT_PUBLIC_API_URL=http://localhost:8000
 RUN npm run build
 

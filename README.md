@@ -1,96 +1,85 @@
 # ViXa Platform CIAM
 
-Customer Identity & Access Management system for the Ost Infinity ecosystem.
+Customer Identity & Access Management for the Ost Infinity ecosystem.
 
-## Architecture
+## Repository layout
 
 ```
-Clients (Next.js + Flutter) → Edge (Gateway) → CIAM Core → Domain Services → Event Backbone → ACL → Ost Infinity
+vixa/
+├── backend/          # FastAPI microservices, gateway, workers, tests
+├── frontend/         # Next.js web app
+├── mobile/           # Flutter iOS/Android app
+├── docs/             # Architecture & structure docs
+├── docker-compose.yml
+└── README.md
 ```
 
-## Services
+## Quick start
 
-| Service | Port | Description |
-|---------|------|-------------|
-| API Gateway | 8000 | JWT validation, rate limiting, routing |
-| Auth Service | 8001 | Registration, login, JWT, MFA |
-| Onboarding Orchestrator | 8002 | 5-step saga with compensating actions |
-| Org & Site Service | 8003 | Organisation and site management |
-| Verification Service | 8004 | Email/SMS OTP |
-| Payments Service | 8005 | Stripe card verification & subscriptions |
-| Licensing & RBAC | 8006 | Products, licences, entitlements |
-| Anti-Corruption Layer | 8007 | Ost Infinity integration |
-| Observability | 8008 | Service health + audit log dashboard API |
-
-## Quick Start (Local — macOS / Homebrew)
-
-### First-time setup
+### 1. Backend
 
 ```bash
-./scripts/setup-local.sh
+cd backend
+./scripts/setup-local.sh          # first time only
 cp .env.local.example .env
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r shared/requirements.txt
-cd frontend && npm install && cd ..
+./scripts/start-local.sh
 ```
 
-### Run backend
+Or from repo root:
 
 ```bash
-./scripts/stop-local.sh && ./scripts/start-local.sh
+./scripts/start-local.sh
 ```
 
-### Run frontend (separate terminal)
+Gateway: http://localhost:8000
+
+### 2. Frontend
 
 ```bash
-cd frontend && npm run dev
+cd frontend
+npm install
+npm run dev
 ```
 
-- Frontend: http://localhost:3000  
-- API Gateway: http://localhost:8000  
-- Observability UI: http://localhost:3000/observability  
+Web app: http://localhost:3000
 
-### Mobile app
+### 3. Mobile (optional)
 
 ```bash
-cd mobile && flutter pub get && flutter run
+cd mobile
+flutter pub get
+flutter run
 ```
 
-### Stop all services
+## Docker
 
 ```bash
-./scripts/stop-local.sh
-```
-
-## Docker (optional)
-
-```bash
-cp .env.local.example .env
+cp backend/.env.local.example backend/.env
 docker compose up -d
 ```
 
 ## Tests
 
 ```bash
+cd backend
 source .venv/bin/activate
 PYTHONPATH=. pytest tests/ -v
-cd mobile && flutter test
+
+cd ../mobile && flutter test
 ```
 
-## MVP Features
+## Documentation
 
-- User registration + digital identity
-- Organisation and site creation (extended profile fields)
-- reCAPTCHA, email OTP, mobile OTP verification
-- Login with JWT + rotating refresh token + MFA
-- Stripe card verification (€1 hold, mock + real paths)
+- [Backend README](backend/README.md) — services, ports, module map
+- [Frontend README](frontend/README.md) — pages and env vars
+- [Architecture structure](docs/STRUCTURE.md)
+
+## MVP features
+
+- Identity-first onboarding saga (register → org → verify → pay → activate)
+- JWT + refresh tokens + MFA + entitlement claims
 - 5 canonical products (ViXa Platform base + 4 subscriptions)
-- Product subscription, licence assignment, entitlement gating
-- JWT entitlement claims
-- Account suspend / close
 - Event-driven licence provisioning
-- Immutable audit logging + observability dashboard
-
-## Environment
-
-Copy `.env.local.example` to `.env`. Never commit `.env` — it is gitignored.
+- Immutable audit log + observability dashboard
