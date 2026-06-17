@@ -1,63 +1,44 @@
-# ViXa CIAM — Backend (FastAPI)
-
-Async microservices backend for the ViXa Platform CIAM system.
+# ViXa CIAM — Backend (NestJS)
 
 ## Run
 
 ```bash
-cd backend
-pip install -r shared/requirements.txt
-cp .env.local.example .env
-./scripts/start-local.sh
+npm install
+cp .env.example .env
+npx prisma db push && npx ts-node prisma/seed.ts
+npm run start:dev
 ```
 
-Gateway: http://localhost:8000  
-OpenAPI (per service): http://localhost:8001/docs (auth), etc.
-
-```bash
-cd backend
-source .venv/bin/activate
-PYTHONPATH=. pytest tests/ -q
-```
+OpenAPI: http://localhost:8000/api/docs
 
 ## Module map
 
-| Path | Role |
-|------|------|
-| `gateway/app/main.py` | API gateway — JWT, rate limiting, routing (tier 2) |
-| `gateway/app/middleware/rate_limit.py` | Per-endpoint token-bucket limiter |
-| `services/auth/` | Auth service — identity, JWT, MFA, OIDC (tier 3) |
-| `services/onboarding/` | Onboarding saga with compensation (tier 3) |
-| `services/org-site/` | Organisation & site profiles (tier 4) |
-| `services/verification/` | Email/SMS OTP verification (tier 4) |
-| `services/payments/` | Stripe card hold & subscriptions (tier 4) |
-| `services/licensing/` | Products, licences, entitlements (tier 4) |
-| `services/acl/` | Anti-corruption layer → Ost Infinity (tier 6) |
-| `services/observability-node/` | Health aggregation + audit viewer API |
-| `shared/messaging/events.py` | RabbitMQ event backbone (tier 5) |
-| `workers/` | Async workers — licence provisioner, notifications |
-| `shared/audit/logger.py` | Immutable audit log (tier 8) |
-| `infrastructure/postgres/` | PostgreSQL schema + migrations |
+| Module | Path | Architecture tier |
+|--------|------|-------------------|
+| Gateway / entry | `src/main.ts`, guards | Edge + API gateway |
+| EdgeModule | `src/edge/` | CDN/WAF stub, reCAPTCHA |
+| AuthModule | `src/ciam/auth/` | Identity, JWT, refresh, MFA hooks |
+| MfaModule | `src/ciam/mfa/` | OTP in Redis (email/SMS mocked) |
+| OrchestratorModule | `src/ciam/orchestrator/` | 5-step onboarding saga + compensation |
+| OrgModule | `src/domains/org/` | Organisation & site profiles |
+| VerificationModule | `src/domains/verification/` | Email/SMS OTP |
+| PaymentsModule | `src/domains/payments/` | Stripe sandbox / mock €1 hold |
+| LicensingModule | `src/domains/licensing/` | Products, licences, entitlements |
+| EventsModule | `src/events/` | BullMQ event bus + DLQ table |
+| AclModule | `src/acl/` | Anti-corruption layer (only Ost Infinity write path) |
+| OstInfinityModule | `src/ost-infinity/` | Mock system of record |
+| PlatformModule | `src/platform/` | Prisma, Redis, Vault, audit log |
 
-## Services & ports
+## API versioning
 
-| Service | Port |
-|---------|------|
-| Gateway | 8000 |
-| Auth | 8001 |
-| Onboarding | 8002 |
-| Org & Site | 8003 |
-| Verification | 8004 |
-| Payments | 8005 |
-| Licensing | 8006 |
-| ACL | 8007 |
-| Observability | 8008 |
+All routes under `/api/v1/`. Future breaking changes ship as `/api/v2/` with deprecation headers on v1.
 
-## First-time setup
+## Extracting microservices later
 
-```bash
-./scripts/setup-local.sh   # PostgreSQL, Redis, RabbitMQ (macOS Homebrew)
-cp .env.local.example .env
-```
+Each module is a NestJS `@Module` with its own controllers/services. To extract:
 
-Stop all: `./scripts/stop-local.sh`
+1. Move module to standalone app
+2. Replace in-process calls with `@nestjs/microservices` transport (TCP/Kafka)
+3. Keep ACL as the only Ost Infinity integration point
+
+See `docs/RECOMMENDATIONS.md` for authentication, rate limiting, and data modelling notes.

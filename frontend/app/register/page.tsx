@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, getRecaptchaToken } from "@/lib/api";
+import { apiClient, getRecaptchaToken } from "@/lib/api-client";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,9 +23,8 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const user = await api.register({ ...form, recaptcha_token: getRecaptchaToken() });
+      const user = await apiClient.register({ ...form, recaptcha_token: getRecaptchaToken() });
       setSuccess(`Account created! Digital Identity: ${user.digital_identity_id}`);
-      localStorage.setItem("user_id", user.id);
       setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -44,23 +43,51 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="first_name">First Name</label>
-            <input id="first_name" required value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+            <input
+              id="first_name"
+              required
+              value={form.first_name}
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="last_name">Last Name</label>
-            <input id="last_name" required value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+            <input
+              id="last_name"
+              required
+              value={form.last_name}
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="email">Email</label>
-            <input id="email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <input
+              id="email"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="phone">Phone (optional)</label>
-            <input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input
+              id="phone"
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input id="password" type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input
+              id="password"
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
           </div>
           <button type="submit" className="btn" disabled={loading}>
             {loading ? "Creating account..." : "Register"}

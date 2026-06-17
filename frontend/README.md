@@ -1,4 +1,4 @@
-# ViXa CIAM — Frontend (Next.js)
+# ViXa CIAM — Frontend (Next.js 14)
 
 React/TypeScript web client for ViXa Platform onboarding, login, products, and account management.
 
@@ -12,7 +12,14 @@ npm run dev
 
 App: http://localhost:3000
 
-Requires the backend gateway running at http://localhost:8000 (see `../backend/README.md`).
+Requires the backend API gateway at `http://localhost:8000` (see `../backend/README.md`).
+
+## Architecture
+
+- **Gateway only** — all backend calls go through `NEXT_PUBLIC_API_URL/api/v1/*`; never call Ost Infinity or internal services directly.
+- **Cookie auth** — access/refresh tokens stored in httpOnly cookies via Next.js Route Handlers (`/api/auth/login`, `/api/auth/logout`, `/api/auth/refresh`). Tokens are never stored in localStorage.
+- **`lib/api-server.ts`** — server-side fetch with cookies (SSR pages).
+- **`lib/api-client.ts`** — client components call Route Handlers or the BFF proxy at `/api/bff/*`.
 
 ## Pages
 
@@ -20,9 +27,9 @@ Requires the backend gateway running at http://localhost:8000 (see `../backend/R
 |-------|-------------|
 | `/` | Home |
 | `/register` | Simple registration |
-| `/onboarding` | Full 5-step onboarding saga |
+| `/onboarding` | Full onboarding saga with org profile |
 | `/login` | Login + MFA |
-| `/products` | Products & Services (entitlement tiles) |
+| `/products` | Products & Services (base = Included, subscriptions = upsell/entitled) |
 | `/observability` | Service health + audit log dashboard |
 | `/account` | MFA, suspend, close account |
 

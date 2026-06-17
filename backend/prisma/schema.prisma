@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── CIAM Identity (owned by Auth service) ───────────────────────────────────
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  passwordHash       String   @map("password_hash")
+  firstName          String   @map("first_name")
+  lastName           String   @map("last_name")
+  phone              String?
+  digitalIdentityId  String   @unique @default(uuid()) @map("digital_identity_id")
+  status             String   @default("pending_verification")
+  mfaEnabled         Boolean  @default(false) @map("mfa_enabled")
+  emailVerified      Boolean  @default(false) @map("email_verified")
+  phoneVerified      Boolean  @default(false) @map("phone_verified")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  sagas         Saga[]
+  licences      Licence[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  revoked   Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("refresh_tokens")
+}
+
+// ─── Onboarding Saga (Orchestrator) ──────────────────────────────────────────
+
+model Saga {
+  id              String   @id @default(uuid())
+  correlationId   String   @unique @default(uuid()) @map("correlation_id")
+  userId          String?  @map("user_id")
+  status          String   @default("in_progress")
+  currentStep     String   @map("current_step")
+  stepsCompleted  Json     @default("[]") @map("steps_completed")
+  payload         Json?
+  compensationLog Json     @default("[]") @map("compensation_log")
+  errorMessage    String?  @map("error_message")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("sagas")
+}
+
+// ─── Domain: Organisation & Site ─────────────────────────────────────────────
+
+model Organisation {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  ownerUserId     String   @map("owner_user_id")
+  status          String   @default("active")
+  country         String?
+  city            String?
+  address         String?
+  postcode        String?
+  telephone       String?
+  directors       Json?
+  ostInfinityOrgId String? @map("ost_infinity_org_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  sites Site[]
+
+  @@map("organisations")
+}
+
+model Site {
+  id               String   @id @default(uuid())
+  organisationId   String   @map("organisation_id")
+  name             String
+  slug             String
+  location         String?
+  managers         Json?
+  status           String   @default("active")
+  ostInfinitySiteId String? @map("ost_infinity_site_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, slug])
+  @@map("sites")
+}
+
+// ─── Domain: Verification ────────────────────────────────────────────────────
+
+model OtpChallenge {
+  id        String   @id @default(uuid())
+  channel   String
+  target    String
+  code      String
+  userId    String?  @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("otp_challenges")
+}
+
+// ─── Domain: Payments ──────────────────────────────────────────────────────
+
+model PaymentCustomer {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+  stripeCustomerId String?  @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  transactions  Transaction[]
+  subscriptions Subscription[]
+
+  @@map("payment_customers")
+}
+
+model Transaction {
+  id                    String   @id @default(uuid())
+  customerId            String   @map("customer_id")
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  amountCents           Int      @map("amount_cents")
+  currency              String   @default("EUR")
+  status                String   @default("pending")
+  type                  String
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  customer PaymentCustomer @relation(fields: [customerId], references: [id])
+
+  @@map("transactions")
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  customerId           String   @map("customer_id")
+  productId            String   @map("product_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  status               String   @default("pending")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  customer PaymentCustomer @relation(fields: [customerId], references: [id])
+  product  Product         @relation(fields: [productId], references: [id])
+
+  @@map("subscriptions")
+}
+
+// ─── Domain: Licensing & RBAC ────────────────────────────────────────────────
+
+model Product {
+  id                    String   @id @default(uuid())
+  name                  String
+  slug                  String   @unique
+  description           String?
+  priceCents            Int      @map("price_cents")
+  currency              String   @default("EUR")
+  isBase                Boolean  @default(false) @map("is_base")
+  active                Boolean  @default(true)
+  ostInfinityProductId  String?  @map("ost_infinity_product_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  entitlements  Entitlement[]
+  licences      Licence[]
+  subscriptions Subscription[]
+
+  @@map("products")
+}
+
+model Entitlement {
+  id          String @id @default(uuid())
+  productId   String @map("product_id")
+  featureKey  String @map("feature_key")
+  featureName String @map("feature_name")
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([productId, featureKey])
+  @@map("entitlements")
+}
+
+model Licence {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  productId           String    @map("product_id")
+  organisationId      String?   @map("organisation_id")
+  status              String    @default("active")
+  ostInfinityLicenceId String?  @map("ost_infinity_licence_id")
+  validFrom           DateTime  @default(now()) @map("valid_from")
+  validUntil          DateTime? @map("valid_until")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("licences")
+}
+
+// ─── Anti-Corruption Layer (idempotency tracking) ────────────────────────────
+
+model AclSyncRecord {
+  id             String   @id @default(uuid())
+  idempotencyKey String   @unique @map("idempotency_key")
+  entityType     String   @map("entity_type")
+  localId        String   @map("local_id")
+  ostInfinityId  String?  @map("ost_infinity_id")
+  payload        Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("acl_sync_records")
+}
+
+// ─── Ost Infinity (System of Record — mock for MVP) ──────────────────────────
+
+model OstCustomer {
+  id                String   @id @default(uuid())
+  localUserId       String   @unique @map("local_user_id")
+  email             String
+  digitalIdentityId String   @map("digital_identity_id")
+  status            String   @default("active")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("ost_customers")
+}
+
+model OstOrganisation {
+  id          String   @id @default(uuid())
+  localOrgId  String   @unique @map("local_org_id")
+  name        String
+  status      String   @default("active")
+  profile     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ost_organisations")
+}
+
+model OstSite {
+  id          String   @id @default(uuid())
+  localSiteId String   @unique @map("local_site_id")
+  localOrgId  String   @map("local_org_id")
+  name        String
+  status      String   @default("active")
+  profile     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("ost_sites")
+}
+
+model OstLicence {
+  id           String   @id @default(uuid())
+  localLicenceId String @unique @map("local_licence_id")
+  localUserId  String   @map("local_user_id")
+  productSlug  String   @map("product_slug")
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("ost_licences")
+}
+
+// ─── Platform: Immutable Audit Log ───────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  eventType    String   @map("event_type")
+  actorId      String?  @map("actor_id")
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  correlationId String? @map("correlation_id")
+  ipAddress    String?  @map("ip_address")
+  metadata     Json?
+  checksum     String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+// ─── Event Backbone: Dead-letter store (MVP lightweight) ─────────────────────
+
+model DeadLetterEvent {
+  id        String   @id @default(uuid())
+  topic     String
+  payload   Json
+  error     String
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("dead_letter_events")
+}

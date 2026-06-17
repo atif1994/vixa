@@ -9,7 +9,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vixa -d vixa_ciam"]
       interval: 5s
@@ -26,219 +25,23 @@ services:
       timeout: 3s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: vixa
-      RABBITMQ_DEFAULT_PASS: vixa_secret
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  auth-service:
+  backend:
     build:
       context: ./backend
-      dockerfile: services/auth/Dockerfile
+      dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
+      DATABASE_URL: postgresql://vixa:vixa_secret@postgres:5432/vixa_ciam
       REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
       JWT_SECRET: dev-jwt-secret-change-in-production
+      STRIPE_SECRET_KEY: sk_test_mock
       RECAPTCHA_SECRET_KEY: mock_recaptcha_secret
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8001:8001"
-
-  onboarding-service:
-    build:
-      context: ./backend
-      dockerfile: services/onboarding/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-      AUTH_SERVICE_URL: http://auth-service:8001
-      ONBOARDING_SERVICE_URL: http://onboarding-service:8002
-      ORG_SITE_SERVICE_URL: http://org-site-service:8003
-      VERIFICATION_SERVICE_URL: http://verification-service:8004
-      PAYMENTS_SERVICE_URL: http://payments-service:8005
-      LICENSING_SERVICE_URL: http://licensing-service:8006
-      ACL_SERVICE_URL: http://acl-service:8007
-    depends_on:
-      postgres:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-      verification-service:
-        condition: service_started
-      org-site-service:
-        condition: service_started
-      payments-service:
-        condition: service_started
-      licensing-service:
-        condition: service_started
-    ports:
-      - "8002:8002"
-
-  org-site-service:
-    build:
-      context: ./backend
-      dockerfile: services/org-site/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-      OST_INFINITY_BASE_URL: http://acl-service:8007/mock/ost-infinity
-    depends_on:
-      postgres:
-        condition: service_healthy
-      acl-service:
-        condition: service_started
-    ports:
-      - "8003:8003"
-
-  verification-service:
-    build:
-      context: ./backend
-      dockerfile: services/verification/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-      REDIS_URL: redis://redis:6379/0
-      EMAIL_PROVIDER: mock
-      SMS_PROVIDER: mock
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "8004:8004"
-
-  payments-service:
-    build:
-      context: ./backend
-      dockerfile: services/payments/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-      STRIPE_SECRET_KEY: sk_test_mock
-      STRIPE_WEBHOOK_SECRET: whsec_mock
-      STRIPE_HOLD_AMOUNT_CENTS: "100"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8005:8005"
-
-  licensing-service:
-    build:
-      context: ./backend
-      dockerfile: services/licensing/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8006:8006"
-
-  acl-service:
-    build:
-      context: ./backend
-      dockerfile: services/acl/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://vixa:vixa_secret@postgres:5432/vixa_ciam
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8007:8007"
-
-  observability-node:
-    build:
-      context: ./backend
-      dockerfile: services/observability-node/Dockerfile
-    environment:
-      DATABASE_URL: postgresql://vixa:vixa_secret@postgres:5432/vixa_ciam
-      GATEWAY_URL: http://gateway:8000/health
-      AUTH_SERVICE_URL: http://auth-service:8001
-      ONBOARDING_SERVICE_URL: http://onboarding-service:8002
-      ORG_SITE_SERVICE_URL: http://org-site-service:8003
-      VERIFICATION_SERVICE_URL: http://verification-service:8004
-      PAYMENTS_SERVICE_URL: http://payments-service:8005
-      LICENSING_SERVICE_URL: http://licensing-service:8006
-      ACL_SERVICE_URL: http://acl-service:8007
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8008:8008"
-
-  gateway:
-    build:
-      context: ./backend
-      dockerfile: gateway/Dockerfile
-    environment:
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: dev-jwt-secret-change-in-production
-      GATEWAY_RATE_LIMIT: "100"
-      GATEWAY_RATE_WINDOW_SECONDS: "60"
-      AUTH_SERVICE_URL: http://auth-service:8001
-      ONBOARDING_SERVICE_URL: http://onboarding-service:8002
-      ORG_SITE_SERVICE_URL: http://org-site-service:8003
-      VERIFICATION_SERVICE_URL: http://verification-service:8004
-      PAYMENTS_SERVICE_URL: http://payments-service:8005
-      LICENSING_SERVICE_URL: http://licensing-service:8006
-      ACL_SERVICE_URL: http://acl-service:8007
-      OBSERVABILITY_SERVICE_URL: http://observability-node:8008
-    depends_on:
-      - auth-service
-      - onboarding-service
-      - org-site-service
-      - verification-service
-      - payments-service
-      - licensing-service
-      - acl-service
-      - observability-node
-      - redis
     ports:
       - "8000:8000"
-
-  licence-provisioner:
-    build:
-      context: ./backend
-      dockerfile: workers/licence-provisioner/Dockerfile
-    environment:
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      licensing-service:
-        condition: service_started
-
-  notification-worker:
-    build:
-      context: ./backend
-      dockerfile: workers/notification/Dockerfile
-    environment:
-      RABBITMQ_URL: amqp://vixa:vixa_secret@rabbitmq:5672/
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
 
   frontend:
     build:
@@ -247,7 +50,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     depends_on:
-      - gateway
+      - backend
     ports:
       - "3000:3000"
 

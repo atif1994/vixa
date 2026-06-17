@@ -1,45 +1,29 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { serverApi } from "@/lib/api-server";
 
-interface ServiceHealth {
-  name: string;
-  status: string;
-}
+export default async function ObservabilityPage() {
+  let health = null;
+  let logs: Array<{
+    id: string;
+    event_type: string;
+    actor_id: string | null;
+    resource_type?: string | null;
+    created_at: string;
+  }> = [];
+  let error = "";
 
-interface AuditLog {
-  id: string;
-  event_type: string;
-  actor_id: string | null;
-  resource_type: string | null;
-  created_at: string;
-}
+  try {
+    health = await serverApi.getServiceHealth();
+  } catch (err) {
+    error = err instanceof Error ? err.message : "Failed to load service health";
+  }
 
-export default function ObservabilityPage() {
-  const [health, setHealth] = useState<{ total: number; healthy: number; services: ServiceHealth[] } | null>(null);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const load = async () => {
-      setError("");
-      try {
-        const h = await api.getServiceHealth();
-        setHealth(h);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load service health");
-      }
-      try {
-        const a = await api.getRecentAuditLogs(30);
-        setLogs(a.logs);
-      } catch {
-        // Audit log failure is non-fatal if health loaded
-      }
-    };
-    load();
-  }, []);
+  try {
+    const audit = await serverApi.getRecentAuditLogs(30);
+    logs = audit.logs;
+  } catch {
+    // Audit log failure is non-fatal if health loaded
+  }
 
   return (
     <div>

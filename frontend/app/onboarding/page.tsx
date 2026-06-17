@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RecaptchaBadge } from "@/components/RecaptchaBadge";
-import { api, getRecaptchaToken, saveTokens, Product } from "@/lib/api";
+import { apiClient, getRecaptchaToken } from "@/lib/api-client";
+import type { Product } from "@/lib/types";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -32,11 +33,17 @@ export default function OnboardingPage() {
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getProducts().then((list) => setProducts(list.filter((p) => !p.is_base))).catch(() => {});
+    apiClient
+      .getProducts()
+      .then((list) => setProducts(list.filter((p) => !p.is_base)))
+      .catch(() => {});
   }, []);
 
   const parseList = (value: string) =>
-    value.split(",").map((s) => s.trim()).filter(Boolean);
+    value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +51,7 @@ export default function OnboardingPage() {
     setLoading(true);
     setStatus("Starting onboarding saga...");
     try {
-      const result = await api.startOnboarding({
+      const result = await apiClient.startOnboarding({
         email: form.email,
         password: form.password,
         first_name: form.first_name,
@@ -65,12 +72,11 @@ export default function OnboardingPage() {
       });
 
       if (result.status === "completed" && result.user_id) {
-        localStorage.setItem("user_id", result.user_id);
         setStatus("Onboarding complete! Logging you in...");
-        const tokens = await api.login(form.email, form.password, getRecaptchaToken());
-        if (!tokens.mfa_required) {
-          saveTokens(tokens);
+        const loginResult = await apiClient.login(form.email, form.password, getRecaptchaToken());
+        if (!loginResult.mfa_required) {
           router.push("/products");
+          router.refresh();
         } else {
           router.push("/login");
         }
@@ -96,33 +102,68 @@ export default function OnboardingPage() {
         {error && <div className="error">{error}</div>}
         {status && <div className="success">{status}</div>}
         <form onSubmit={handleSubmit}>
+          <h3 className="section-title">Identity</h3>
           <div className="form-group">
             <label>First Name</label>
-            <input required value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+            <input
+              required
+              value={form.first_name}
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Last Name</label>
-            <input required value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+            <input
+              required
+              value={form.last_name}
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Email</label>
-            <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Phone (SMS OTP)</label>
-            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+31612345678" />
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+31612345678"
+            />
           </div>
           <div className="form-group">
             <label>Password</label>
-            <input type="password" required minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
           </div>
+
+          <h3 className="section-title">Organisation Profile</h3>
           <div className="form-group">
             <label>Organisation Name</label>
-            <input required value={form.org_name} onChange={(e) => setForm({ ...form, org_name: e.target.value })} />
+            <input
+              required
+              value={form.org_name}
+              onChange={(e) => setForm({ ...form, org_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Country</label>
-            <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="Netherlands" />
+            <input
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+              placeholder="Netherlands"
+            />
           </div>
           <div className="form-group">
             <label>City</label>
@@ -130,39 +171,66 @@ export default function OnboardingPage() {
           </div>
           <div className="form-group">
             <label>Address</label>
-            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Postcode</label>
-            <input value={form.postcode} onChange={(e) => setForm({ ...form, postcode: e.target.value })} />
+            <input
+              value={form.postcode}
+              onChange={(e) => setForm({ ...form, postcode: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Telephone</label>
-            <input value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />
+            <input
+              value={form.telephone}
+              onChange={(e) => setForm({ ...form, telephone: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Directors (comma-separated)</label>
-            <input value={form.directors} onChange={(e) => setForm({ ...form, directors: e.target.value })} placeholder="Jane Doe, John Smith" />
+            <input
+              value={form.directors}
+              onChange={(e) => setForm({ ...form, directors: e.target.value })}
+              placeholder="Jane Doe, John Smith"
+            />
           </div>
+
+          <h3 className="section-title">Site</h3>
           <div className="form-group">
             <label>Site Name</label>
-            <input required value={form.site_name} onChange={(e) => setForm({ ...form, site_name: e.target.value })} />
+            <input
+              required
+              value={form.site_name}
+              onChange={(e) => setForm({ ...form, site_name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Site Location</label>
-            <input value={form.site_location} onChange={(e) => setForm({ ...form, site_location: e.target.value })} />
+            <input
+              value={form.site_location}
+              onChange={(e) => setForm({ ...form, site_location: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>Site Managers (comma-separated)</label>
-            <input value={form.site_managers} onChange={(e) => setForm({ ...form, site_managers: e.target.value })} />
+            <input
+              value={form.site_managers}
+              onChange={(e) => setForm({ ...form, site_managers: e.target.value })}
+            />
           </div>
+
+          <h3 className="section-title">Subscription</h3>
           <div className="form-group">
             <label>Subscription Product</label>
             <select
               required
               value={form.product_id}
               onChange={(e) => setForm({ ...form, product_id: e.target.value })}
-              style={{ width: "100%", padding: "0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)" }}
+              className="select"
             >
               <option value="">Select a subscription</option>
               {products.map((p) => (

@@ -10,6 +10,7 @@ export default function HomePage() {
           <Link href="/register">Register</Link>
           <Link href="/onboarding">Onboarding</Link>
           <Link href="/products">Products</Link>
+          <Link href="/observability">Observability</Link>
         </div>
       </nav>
       <div className="container" style={{ maxWidth: 800, textAlign: "center", paddingTop: "4rem" }}>
@@ -17,11 +18,19 @@ export default function HomePage() {
         <p style={{ color: "var(--muted)", fontSize: "1.125rem", marginBottom: "2rem" }}>
           Identity-first onboarding for the Ost Infinity ecosystem
         </p>
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-          <Link href="/register" className="btn" style={{ width: "auto", padding: "0.875rem 2rem", display: "inline-block" }}>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <Link
+            href="/register"
+            className="btn"
+            style={{ width: "auto", padding: "0.875rem 2rem", display: "inline-block" }}
+          >
             Get Started
           </Link>
-          <Link href="/login" className="btn" style={{ width: "auto", padding: "0.875rem 2rem", display: "inline-block", background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <Link
+            href="/login"
+            className="btn btn-secondary"
+            style={{ width: "auto", padding: "0.875rem 2rem", display: "inline-block" }}
+          >
             Sign In
           </Link>
         </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, getRecaptchaToken, saveTokens } from "@/lib/api";
+import { apiClient, getRecaptchaToken } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,12 +19,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const tokens = await api.login(email, password, getRecaptchaToken());
-      if (tokens.mfa_required && tokens.mfa_session_id) {
-        setMfaSessionId(tokens.mfa_session_id);
+      const result = await apiClient.login(email, password, getRecaptchaToken());
+      if (result.mfa_required && result.mfa_session_id) {
+        setMfaSessionId(result.mfa_session_id);
       } else {
-        saveTokens(tokens);
         router.push("/products");
+        router.refresh();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -39,9 +39,9 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const tokens = await api.verifyMfa(mfaSessionId, mfaCode);
-      saveTokens(tokens);
+      await apiClient.verifyMfa(mfaSessionId, mfaCode);
       router.push("/products");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "MFA verification failed");
     } finally {
@@ -60,7 +60,14 @@ export default function LoginPage() {
           <form onSubmit={handleMfa}>
             <div className="form-group">
               <label htmlFor="mfa">Verification Code</label>
-              <input id="mfa" required maxLength={6} value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} placeholder="000000" />
+              <input
+                id="mfa"
+                required
+                maxLength={6}
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                placeholder="000000"
+              />
             </div>
             <button type="submit" className="btn" disabled={loading}>
               {loading ? "Verifying..." : "Verify"}
@@ -70,11 +77,23 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
-              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <button type="submit" className="btn" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
